@@ -12,7 +12,7 @@
 <body>
   <div class="arcade-container">
     <header class="arcade-header">
-      <div class="arcade-badge">PHASE 6: LIVES &amp; INVULNERABILITY</div>
+      <div class="arcade-badge">PHASE 7: POLISH, SOUND &amp; TOUCH</div>
       <h1 class="arcade-title">COIN CATCHER</h1>
       <p class="arcade-subtitle">Classic 2D Arcade Experience</p>
     </header>
@@ -26,11 +26,15 @@
         <span class="lives-label">LIVES</span>
         <span id="livesDisplay" class="lives-value">3</span>
       </div>
+      <button id="soundToggleBtn" class="sound-toggle-btn" aria-label="Toggle Sound" title="Toggle Game Audio">
+        <span id="soundIcon" class="sound-icon">🔇</span>
+        <span id="soundText" class="sound-text">SOUND: OFF</span>
+      </button>
     </div>
 
     <div class="instructions-card">
       <h2>Controls &amp; Objectives</h2>
-      <p>Collect <span class="badge yellow">Gold Coins</span> and dodge the patrolling <span class="badge red">Red Enemy</span>. You have 3 Lives with 1.5s recovery invulnerability!</p>
+      <p>Use <span class="badge blue">Arrow Keys</span>, <span class="badge blue">WASD</span>, or the <span class="badge yellow">Touch D-Pad</span> below to catch coins and avoid the red patrol enemy!</p>
     </div>
 
     <div class="canvas-wrapper">
@@ -46,8 +50,20 @@
             <span class="final-score-label">FINAL SCORE</span>
             <span id="finalScoreDisplay" class="final-score-number">0</span>
           </div>
-          <button id="restartBtn" class="restart-button">RESTART GAME</button>
+          <button id="restartBtn" class="restart-button" aria-label="Restart Game">RESTART GAME</button>
         </div>
+      </div>
+    </div>
+
+    <!-- Responsive Touch Controls for Mobile/Tablets -->
+    <div id="touchControls" class="touch-controls" aria-label="Touch Navigation Controls">
+      <div class="dpad-grid">
+        <div></div>
+        <button id="dpadUp" class="dpad-btn dpad-up" aria-label="Move Up">▲</button>
+        <div></div>
+        <button id="dpadLeft" class="dpad-btn dpad-left" aria-label="Move Left">◀</button>
+        <button id="dpadDown" class="dpad-btn dpad-down" aria-label="Move Down">▼</button>
+        <button id="dpadRight" class="dpad-btn dpad-right" aria-label="Move Right">▶</button>
       </div>
     </div>
 

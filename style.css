@@ -147,6 +147,48 @@ body {
   text-align: center;
 }
 
+/* Sound Toggle Button */
+.sound-toggle-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  background: rgba(15, 23, 42, 0.95);
+  border: 2px solid rgba(56, 189, 248, 0.4);
+  border-radius: 10px;
+  padding: 8px 18px;
+  cursor: pointer;
+  box-shadow: 
+    0 0 16px rgba(56, 189, 248, 0.15),
+    inset 0 0 10px rgba(56, 189, 248, 0.05);
+  transition: all 0.2s ease;
+}
+
+.sound-toggle-btn:hover {
+  border-color: rgba(56, 189, 248, 0.7);
+  box-shadow: 0 0 20px rgba(56, 189, 248, 0.35);
+  transform: translateY(-1px);
+}
+
+.sound-toggle-btn.active {
+  border-color: rgba(52, 211, 153, 0.6);
+  box-shadow: 0 0 20px rgba(52, 211, 153, 0.35);
+}
+
+.sound-toggle-btn.active .sound-text {
+  color: #34d399;
+}
+
+.sound-icon {
+  font-size: 16px;
+}
+
+.sound-text {
+  font-family: 'Press Start 2P', monospace;
+  font-size: 11px;
+  color: #94a3b8;
+  letter-spacing: 0.5px;
+}
+
 /* Instructions Card */
 .instructions-card {
   width: 100%;
@@ -347,11 +389,96 @@ body {
   transform: translateY(0);
 }
 
+/* Responsive Touch D-Pad Controls */
+.touch-controls {
+  margin-top: 20px;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  width: 100%;
+  max-width: 800px;
+  user-select: none;
+  -webkit-user-select: none;
+  touch-action: none;
+}
+
+.dpad-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 64px);
+  grid-template-rows: repeat(2, 54px);
+  gap: 10px;
+}
+
+.dpad-btn {
+  background: rgba(15, 23, 42, 0.9);
+  border: 2px solid rgba(56, 189, 248, 0.45);
+  border-radius: 12px;
+  color: #38bdf8;
+  font-size: 18px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.5);
+  transition: all 0.15s ease;
+  touch-action: none;
+  user-select: none;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.dpad-btn:hover {
+  border-color: rgba(56, 189, 248, 0.7);
+  box-shadow: 0 0 16px rgba(56, 189, 248, 0.35);
+}
+
+.dpad-btn:active,
+.dpad-btn.pressed {
+  background: rgba(56, 189, 248, 0.35);
+  border-color: #38bdf8;
+  box-shadow: 0 0 20px rgba(56, 189, 248, 0.6);
+  transform: scale(0.94);
+}
+
+/* Focus Visibility for Accessibility */
+button:focus-visible {
+  outline: 2px solid #38bdf8 !important;
+  outline-offset: 3px !important;
+}
+
+/* Reduced Motion Preference */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.001s !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.001s !important;
+  }
+}
+
 /* Responsive adjustment */
 @media (max-width: 860px) {
   #gameCanvas {
     width: 100%;
     height: auto;
     aspect-ratio: 800 / 450;
+  }
+
+  .arcade-container {
+    padding: 18px 14px;
+  }
+
+  .arcade-title {
+    font-size: 20px;
+  }
+
+  .hud-bar {
+    gap: 10px;
+  }
+
+  .score-card,
+  .lives-card,
+  .sound-toggle-btn {
+    padding: 6px 16px;
   }
 }

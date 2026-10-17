@@ -1,14 +1,14 @@
 /**
- * Coin Catcher Arcade - Phase 6: Lives, Invulnerability, and Game-State Improvements
+ * Coin Catcher Arcade - Phase 7: Visual Polish, Animations, Sound, and Responsive Controls
  * 
  * In this phase:
- * 1. A 3-lives system is introduced and tracked in the HUD display.
- * 2. Non-fatal collisions reduce lives by exactly 1 and return the player to safe spawn.
- * 3. Temporary invulnerability (~1.5s) is granted after a non-fatal collision with visual blinking.
- * 4. Invulnerability prevents repeated damage and uses elapsed timestamps (performance.now()).
- * 5. Game Over triggers only when lives reach 0, locking state and showing final score.
- * 6. The Restart button restores 3 lives, score 0, and clears invulnerability without creating duplicate loops.
- * 7. Preserves all keyboard controls, normalization, boundaries, coin collection, and enemy patrol.
+ * 1. Web Audio API synthesized retro sound effects (Coin, Hit, Game Over, Restart).
+ * 2. Sound starts OFF/Muted by default; toggleable via the HUD button.
+ * 3. Responsive Touch D-Pad controls with continuous hold and diagonal support.
+ * 4. Lightweight visual animations: pulsing coin, glowing invulnerability shield, menacing enemy core.
+ * 5. Floating "+1" score popup particles when coins are collected.
+ * 6. Responsive canvas scaling and accessibility improvements (:focus-visible, reduced-motion).
+ * 7. Zero dependencies (no external audio files or libraries).
  */
 
 // ==========================================
@@ -23,6 +23,10 @@ const gameOverOverlay = document.getElementById('gameOverOverlay');
 const finalScoreDisplay = document.getElementById('finalScoreDisplay');
 const restartBtn = document.getElementById('restartBtn');
 
+const soundToggleBtn = document.getElementById('soundToggleBtn');
+const soundIcon = document.getElementById('soundIcon');
+const soundText = document.getElementById('soundText');
+
 // ==========================================
 // 2. Constants & Game State Variables
 // ==========================================
@@ -34,6 +38,9 @@ let lives = INITIAL_LIVES;
 let isGameOver = false;
 let isInvulnerable = false;
 let invulnerabilityEndTime = 0;
+
+// Floating text particle system for score feedback
+const floatingTexts = [];
 
 /**
  * Updates the HTML score counter element.
@@ -54,7 +61,174 @@ function updateLivesDisplay() {
 }
 
 // ==========================================
-// 3. Entity Definitions
+// 3. Web Audio API Retro Sound Synthesizer
+// ==========================================
+let audioCtx = null;
+let isAudioEnabled = false;
+
+/**
+ * Lazily initializes and resumes the Web Audio context upon user interaction.
+ */
+function getAudioContext() {
+  if (!audioCtx && (typeof window !== 'undefined') && (window.AudioContext || window.webkitAudioContext)) {
+    const AudioCtxClass = window.AudioContext || window.webkitAudioContext;
+    audioCtx = new AudioCtxClass();
+  }
+  if (audioCtx && audioCtx.state === 'suspended') {
+    audioCtx.resume();
+  }
+  return audioCtx;
+}
+
+/**
+ * Toggles game sound effects on/off.
+ */
+function toggleAudio() {
+  const actx = getAudioContext();
+  isAudioEnabled = !isAudioEnabled;
+
+  if (soundToggleBtn && soundIcon && soundText) {
+    if (isAudioEnabled) {
+      soundToggleBtn.classList.add('active');
+      soundIcon.textContent = '🔊';
+      soundText.textContent = 'SOUND: ON';
+      playRestartSound();
+    } else {
+      soundToggleBtn.classList.remove('active');
+      soundIcon.textContent = '🔇';
+      soundText.textContent = 'SOUND: OFF';
+    }
+  }
+}
+
+if (soundToggleBtn) {
+  soundToggleBtn.addEventListener('click', toggleAudio);
+}
+
+/**
+ * Synthesizes a cheerful two-tone ascending coin pickup sound.
+ */
+function playCoinSound() {
+  if (!isAudioEnabled) return;
+  try {
+    const actx = getAudioContext();
+    if (!actx) return;
+    const now = actx.currentTime;
+
+    const osc = actx.createOscillator();
+    const gain = actx.createGain();
+
+    osc.type = 'sine';
+    osc.frequency.setValueAtTime(587.33, now); // D5
+    osc.frequency.setValueAtTime(880.00, now + 0.08); // A5
+
+    gain.gain.setValueAtTime(0.18, now);
+    gain.gain.exponentialRampToValueAtTime(0.001, now + 0.22);
+
+    osc.connect(gain);
+    gain.connect(actx.destination);
+
+    osc.start(now);
+    osc.stop(now + 0.22);
+  } catch (err) {
+    console.warn('Audio synthesis note:', err);
+  }
+}
+
+/**
+ * Synthesizes a low-pitch impact buzz sound for player damage.
+ */
+function playHitSound() {
+  if (!isAudioEnabled) return;
+  try {
+    const actx = getAudioContext();
+    if (!actx) return;
+    const now = actx.currentTime;
+
+    const osc = actx.createOscillator();
+    const gain = actx.createGain();
+
+    osc.type = 'sawtooth';
+    osc.frequency.setValueAtTime(160, now);
+    osc.frequency.exponentialRampToValueAtTime(50, now + 0.18);
+
+    gain.gain.setValueAtTime(0.22, now);
+    gain.gain.exponentialRampToValueAtTime(0.001, now + 0.2);
+
+    osc.connect(gain);
+    gain.connect(actx.destination);
+
+    osc.start(now);
+    osc.stop(now + 0.2);
+  } catch (err) {
+    console.warn('Audio synthesis note:', err);
+  }
+}
+
+/**
+ * Synthesizes a descending game-over defeat sequence.
+ */
+function playGameOverSound() {
+  if (!isAudioEnabled) return;
+  try {
+    const actx = getAudioContext();
+    if (!actx) return;
+    const now = actx.currentTime;
+
+    const osc = actx.createOscillator();
+    const gain = actx.createGain();
+
+    osc.type = 'triangle';
+    osc.frequency.setValueAtTime(320, now);
+    osc.frequency.setValueAtTime(260, now + 0.12);
+    osc.frequency.setValueAtTime(200, now + 0.24);
+    osc.frequency.exponentialRampToValueAtTime(70, now + 0.6);
+
+    gain.gain.setValueAtTime(0.25, now);
+    gain.gain.exponentialRampToValueAtTime(0.001, now + 0.65);
+
+    osc.connect(gain);
+    gain.connect(actx.destination);
+
+    osc.start(now);
+    osc.stop(now + 0.65);
+  } catch (err) {
+    console.warn('Audio synthesis note:', err);
+  }
+}
+
+/**
+ * Synthesizes a crisp start/restart confirmation tone.
+ */
+function playRestartSound() {
+  if (!isAudioEnabled) return;
+  try {
+    const actx = getAudioContext();
+    if (!actx) return;
+    const now = actx.currentTime;
+
+    const osc = actx.createOscillator();
+    const gain = actx.createGain();
+
+    osc.type = 'sine';
+    osc.frequency.setValueAtTime(440, now);
+    osc.frequency.setValueAtTime(659.25, now + 0.08);
+
+    gain.gain.setValueAtTime(0.15, now);
+    gain.gain.exponentialRampToValueAtTime(0.001, now + 0.2);
+
+    osc.connect(gain);
+    gain.connect(actx.destination);
+
+    osc.start(now);
+    osc.stop(now + 0.2);
+  } catch (err) {
+    console.warn('Audio synthesis note:', err);
+  }
+}
+
+// ==========================================
+// 4. Entity Definitions
 // ==========================================
 // Player object
 const player = {
@@ -98,7 +272,7 @@ const enemy = {
 };
 
 // ==========================================
-// 4. Input Handling
+// 5. Input Handling (Keyboard & Touch D-Pad)
 // ==========================================
 const activeKeys = {
   up: false,
@@ -152,8 +326,38 @@ window.addEventListener('blur', () => {
   activeKeys.right = false;
 });
 
+// Pointer/Touch D-Pad Bindings
+function bindTouchButton(id, direction) {
+  const btn = document.getElementById(id);
+  if (!btn) return;
+
+  const press = (e) => {
+    e.preventDefault();
+    if (!isGameOver) {
+      activeKeys[direction] = true;
+      btn.classList.add('pressed');
+    }
+  };
+
+  const release = (e) => {
+    e.preventDefault();
+    activeKeys[direction] = false;
+    btn.classList.remove('pressed');
+  };
+
+  btn.addEventListener('pointerdown', press);
+  btn.addEventListener('pointerup', release);
+  btn.addEventListener('pointercancel', release);
+  btn.addEventListener('pointerleave', release);
+}
+
+bindTouchButton('dpadUp', 'up');
+bindTouchButton('dpadDown', 'down');
+bindTouchButton('dpadLeft', 'left');
+bindTouchButton('dpadRight', 'right');
+
 // ==========================================
-// 5. Movement & AI Logic
+// 6. Movement & AI Logic
 // ==========================================
 
 function updatePlayer() {
@@ -214,7 +418,7 @@ function updateEnemy() {
 }
 
 // ==========================================
-// 6. Collision Detection & Safe Spawning
+// 7. Collision Detection & Safe Spawning
 // ==========================================
 
 /**
@@ -244,7 +448,6 @@ function checkPlayerEnemyCollision() {
   );
 }
 
-// Maximum random spawn attempts before applying deterministic fallback
 const MAX_SPAWN_ATTEMPTS = 50;
 
 /**
@@ -291,21 +494,14 @@ function spawnCoin() {
 }
 
 // ==========================================
-// 7. Hit Handling, Invulnerability & Game Over
+// 8. Hit Handling, Invulnerability & Game Over
 // ==========================================
 
-/**
- * Handles collision when the player contacts the enemy.
- * Distinguishes between non-fatal life loss and game over.
- * 
- * @param {number} currentTime - Current timestamp from performance.now()
- */
 function handlePlayerHit(currentTime) {
-  // Decrement exactly 1 life
   lives -= 1;
   updateLivesDisplay();
+  playHitSound();
 
-  // Check if player has run out of lives
   if (lives <= 0) {
     triggerGameOver();
   } else {
@@ -313,13 +509,11 @@ function handlePlayerHit(currentTime) {
     player.x = player.startX;
     player.y = player.startY;
 
-    // Reset held keys to prevent immediate accidental movement
     activeKeys.up = false;
     activeKeys.down = false;
     activeKeys.left = false;
     activeKeys.right = false;
 
-    // Grant temporary invulnerability
     isInvulnerable = true;
     invulnerabilityEndTime = currentTime + INVULNERABILITY_DURATION;
 
@@ -327,26 +521,20 @@ function handlePlayerHit(currentTime) {
   }
 }
 
-/**
- * Triggers the Game Over state when lives reach 0.
- * Freezes gameplay and displays the final score overlay.
- */
 function triggerGameOver() {
-  if (isGameOver) return; // Prevent repeated triggers
+  if (isGameOver) return;
   isGameOver = true;
+  playGameOverSound();
 
-  // Clear held keys
   activeKeys.up = false;
   activeKeys.down = false;
   activeKeys.left = false;
   activeKeys.right = false;
 
-  // Update final score display
   if (finalScoreDisplay) {
     finalScoreDisplay.textContent = score;
   }
 
-  // Show the modal overlay
   if (gameOverOverlay) {
     gameOverOverlay.classList.remove('hidden');
   }
@@ -354,40 +542,32 @@ function triggerGameOver() {
   console.log(`Game Over! Final Score: ${score}`);
 }
 
-/**
- * Resets the game to a fresh playable state with 3 lives.
- * Reuses the existing loop and event listeners (no duplicate loops created).
- */
 function restartGame() {
-  // 1. Reset state variables
   isGameOver = false;
   score = 0;
   lives = INITIAL_LIVES;
   isInvulnerable = false;
   invulnerabilityEndTime = 0;
+  floatingTexts.length = 0; // Clear particle queue
 
   updateScoreDisplay();
   updateLivesDisplay();
+  playRestartSound();
 
-  // 2. Reset player to safe starting position
   player.x = player.startX;
   player.y = player.startY;
 
-  // 3. Reset enemy to starting position and direction
   enemy.x = enemy.startX;
   enemy.y = enemy.startY;
   enemy.direction = enemy.startDirection;
 
-  // 4. Reset keys
   activeKeys.up = false;
   activeKeys.down = false;
   activeKeys.left = false;
   activeKeys.right = false;
 
-  // 5. Spawn coin in a fresh valid location
   spawnCoin();
 
-  // 6. Hide game over overlay
   if (gameOverOverlay) {
     gameOverOverlay.classList.add('hidden');
   }
@@ -395,55 +575,69 @@ function restartGame() {
   console.log('Game restarted successfully. 3 Lives restored, Score reset to 0.');
 }
 
-// Attach restart button click listener (one-time setup)
 if (restartBtn) {
   restartBtn.addEventListener('click', restartGame);
 }
 
 // ==========================================
-// 8. Master Update Function
+// 9. Master Update Function
 // ==========================================
 
-/**
- * Master update function.
- * Coordinates movement, AI, invulnerability expiration, and collisions.
- * Stops all updates if isGameOver is true.
- */
 function update() {
-  // Stop all gameplay updates when game is over
   if (isGameOver) {
     return;
   }
 
   const now = performance.now();
 
-  // 1. Check and expire invulnerability window
+  // 1. Expire invulnerability window
   if (isInvulnerable && now >= invulnerabilityEndTime) {
     isInvulnerable = false;
   }
 
-  // 2. Update player based on input
+  // 2. Update player movement
   updatePlayer();
 
   // 3. Update enemy patrol
   updateEnemy();
 
-  // 4. Check player-enemy collision (only active when not invulnerable)
-  if (!isInvulnerable && checkPlayerEnemyCollision()) {
-    handlePlayerHit(now);
-    return; // Exit frame update immediately after hit
+  // 4. Update floating score popup particles
+  for (let i = floatingTexts.length - 1; i >= 0; i--) {
+    const item = floatingTexts[i];
+    item.y += item.dy;
+    item.alpha -= 0.025;
+    if (item.alpha <= 0) {
+      floatingTexts.splice(i, 1);
+    }
   }
 
-  // 5. Check player-coin collision (Scoring - remains active during invulnerability!)
+  // 5. Check player-enemy collision (only active when not invulnerable)
+  if (!isInvulnerable && checkPlayerEnemyCollision()) {
+    handlePlayerHit(now);
+    return;
+  }
+
+  // 6. Check coin collection (remains active during invulnerability!)
   if (checkPlayerCoinCollision()) {
     score += 1;
     updateScoreDisplay();
+
+    // Spawn floating score feedback particle
+    floatingTexts.push({
+      x: coin.x,
+      y: coin.y - 12,
+      text: '+1',
+      alpha: 1.0,
+      dy: -1.0
+    });
+
+    playCoinSound();
     spawnCoin();
   }
 }
 
 // ==========================================
-// 9. Rendering Logic (Drawing)
+// 10. Rendering Logic & Visual Animations
 // ==========================================
 
 function drawBackground() {
@@ -469,15 +663,20 @@ function drawBackground() {
   }
 }
 
-/**
- * Draws the Blue Square Player.
- * Features a controlled blinking effect during invulnerability.
- */
 function drawPlayer() {
-  // Controlled blinking effect during invulnerability (toggles alpha every 100ms)
+  const now = performance.now();
+
+  // Controlled blinking & protective shield aura during invulnerability
   if (isInvulnerable) {
-    const blinkPhase = Math.floor(performance.now() / 100) % 2;
+    const blinkPhase = Math.floor(now / 100) % 2;
     ctx.globalAlpha = blinkPhase === 0 ? 0.3 : 0.85;
+
+    // Glowing protective aura ring
+    ctx.beginPath();
+    ctx.arc(player.x + player.width / 2, player.y + player.height / 2, player.width * 0.75, 0, Math.PI * 2);
+    ctx.strokeStyle = 'rgba(56, 189, 248, 0.45)';
+    ctx.lineWidth = 2;
+    ctx.stroke();
   } else {
     ctx.globalAlpha = 1.0;
   }
@@ -492,13 +691,24 @@ function drawPlayer() {
   ctx.fillStyle = 'rgba(255, 255, 255, 0.35)';
   ctx.fillRect(player.x + 6, player.y + 6, player.width - 12, player.height - 12);
 
-  // Restore canvas opacity for subsequent draw calls
   ctx.globalAlpha = 1.0;
 }
 
 function drawCoin() {
+  const now = performance.now();
+  // Lightweight pulse animation: gentle expansion/contraction
+  const pulse = Math.sin(now / 180) * 1.5;
+  const visualRadius = Math.max(12, coin.radius + pulse);
+
+  // Subtle outer golden glow aura
   ctx.beginPath();
-  ctx.arc(coin.x, coin.y, coin.radius, 0, Math.PI * 2);
+  ctx.arc(coin.x, coin.y, visualRadius + 4, 0, Math.PI * 2);
+  ctx.fillStyle = 'rgba(250, 204, 21, 0.12)';
+  ctx.fill();
+
+  // Main coin disc
+  ctx.beginPath();
+  ctx.arc(coin.x, coin.y, visualRadius, 0, Math.PI * 2);
   ctx.fillStyle = coin.color;
   ctx.fill();
 
@@ -506,14 +716,18 @@ function drawCoin() {
   ctx.lineWidth = 2;
   ctx.stroke();
 
+  // Inner ring highlight
   ctx.beginPath();
-  ctx.arc(coin.x, coin.y, coin.radius * 0.55, 0, Math.PI * 2);
+  ctx.arc(coin.x, coin.y, visualRadius * 0.55, 0, Math.PI * 2);
   ctx.strokeStyle = coin.innerColor;
   ctx.lineWidth = 1.5;
   ctx.stroke();
 }
 
 function drawEnemy() {
+  const now = performance.now();
+  const corePulse = Math.sin(now / 150) * 2;
+
   ctx.fillStyle = enemy.color;
   ctx.fillRect(enemy.x, enemy.y, enemy.width, enemy.height);
 
@@ -521,8 +735,26 @@ function drawEnemy() {
   ctx.lineWidth = 2;
   ctx.strokeRect(enemy.x, enemy.y, enemy.width, enemy.height);
 
-  ctx.fillStyle = 'rgba(0, 0, 0, 0.25)';
+  // Menacing pulsating core
+  ctx.fillStyle = 'rgba(0, 0, 0, 0.35)';
   ctx.fillRect(enemy.x + 8, enemy.y + 8, enemy.width - 16, enemy.height - 16);
+
+  ctx.fillStyle = '#fca5a5';
+  ctx.fillRect(enemy.x + 16 - corePulse / 2, enemy.y + 16 - corePulse / 2, 8 + corePulse, 8 + corePulse);
+}
+
+function drawFloatingTexts() {
+  for (const item of floatingTexts) {
+    ctx.save();
+    ctx.globalAlpha = Math.max(0, item.alpha);
+    ctx.fillStyle = '#facc15';
+    ctx.font = 'bold 15px "Press Start 2P", monospace';
+    ctx.textAlign = 'center';
+    ctx.shadowColor = 'rgba(250, 204, 21, 0.8)';
+    ctx.shadowBlur = 8;
+    ctx.fillText(item.text, item.x, item.y);
+    ctx.restore();
+  }
 }
 
 function draw() {
@@ -532,10 +764,11 @@ function draw() {
   drawPlayer();
   drawCoin();
   drawEnemy();
+  drawFloatingTexts();
 }
 
 // ==========================================
-// 10. Continuous Game Loop & Startup
+// 11. Continuous Game Loop & Startup
 // ==========================================
 
 let isLoopRunning = false;
@@ -561,7 +794,7 @@ function startGame() {
   updateScoreDisplay();
   updateLivesDisplay();
   requestAnimationFrame(gameLoop);
-  console.log('Game loop started successfully with 3 lives.');
+  console.log('Game loop started successfully with sound and touch support.');
 }
 
 // Start game loop on initial load

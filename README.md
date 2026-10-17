@@ -43,5 +43,13 @@ A classic 2D arcade coin catcher game built with HTML5 Canvas, modern CSS, and v
 - **Non-blocking Timing:** Driven by `performance.now()` elapsed timestamps
 - **Game Over at 0 Lives:** Game Over triggers only when all 3 lives are exhausted
 
+## Phase 7: Visual Polish, Animations, Sound & Touch Controls
+- **Web Audio API Sound Effects:** Synthesized retro chimes for coin pickup, damage thud, game over arpeggio, and restart
+- **Sound Control:** Muted by default; toggleable via the HUD button with visual state indicators
+- **Responsive Touch D-Pad:** Continuous hold and diagonal movement support on mobile and touch devices
+- **Canvas Visual Animations:** Pulsing golden coin glow, floating `+1` score popups, and menacing enemy core
+- **Accessibility & Design:** Responsive canvas scaling (`aspect-ratio: 16/9`), keyboard focus rings (`:focus-visible`), and `prefers-reduced-motion` compliance
+- **Zero Dependencies:** Pure vanilla web standards (HTML5 Canvas, CSS3, Web Audio API)
+
 ## How to Run
 Open `index.html` in any modern web browser.
