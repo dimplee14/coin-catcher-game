@@ -12,14 +12,21 @@
 <body>
   <div class="arcade-container">
     <header class="arcade-header">
-      <div class="arcade-badge">PHASE 3: CONTINUOUS GAME LOOP</div>
+      <div class="arcade-badge">PHASE 4: COIN COLLECTION &amp; SCORE</div>
       <h1 class="arcade-title">COIN CATCHER</h1>
       <p class="arcade-subtitle">Classic 2D Arcade Experience</p>
     </header>
 
+    <div class="hud-bar">
+      <div class="score-card">
+        <span class="score-label">SCORE</span>
+        <span id="scoreDisplay" class="score-value">0</span>
+      </div>
+    </div>
+
     <div class="instructions-card">
       <h2>Controls &amp; Objectives</h2>
-      <p>Use <span class="badge blue">Arrow Keys</span> or <span class="badge blue">W A S D</span> to move the Blue Player. The Gold Coin and Red Enemy remain stationary.</p>
+      <p>Use <span class="badge blue">Arrow Keys</span> or <span class="badge blue">W A S D</span> to collect <span class="badge yellow">Gold Coins</span>! The Red Enemy remains stationary.</p>
     </div>
 
     <div class="canvas-wrapper">

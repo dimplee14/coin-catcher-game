@@ -24,5 +24,11 @@ A classic 2D arcade coin catcher game built with HTML5 Canvas, modern CSS, and v
   - `gameLoop()`: Executes `update()`, then `draw()`, then schedules the next frame
 - **Single-Start Guard:** Prevents duplicate running loops or frame spikes
 
+## Phase 4: Coin Collection, Collision Detection & Score
+- **Collision Detection:** Exact mathematical Circle-versus-Rectangle (AABB) intersection check
+- **Score System:** Initialized to 0, updates immediately in the arcade HUD upon collection
+- **Single-Collection Guarantee:** Score increments exactly once per coin collection
+- **Safe Random Spawning:** Moves coin within canvas bounds, enforces safe distance from player, and includes a deterministic quadrant fallback if max attempts (50) are reached
+
 ## How to Run
 Open `index.html` in any modern web browser.

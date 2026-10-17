@@ -1,20 +1,33 @@
 /**
- * Coin Catcher Arcade - Phase 3: Continuous Game Loop
+ * Coin Catcher Arcade - Phase 4: Coin Collection, Collision Detection, and Score
  * 
  * In this phase:
- * 1. Establishes a true continuous game loop via requestAnimationFrame().
- * 2. Strictly separates state updates (update()) from rendering (draw()).
- * 3. Clears the canvas buffer every frame (ctx.clearRect) to prevent motion trails.
- * 4. Guards against duplicate loop initiation with single-start initialization.
- * 5. Preserves all Phase 2 keyboard input, diagonal normalization, and boundary clamping.
- * 6. Preserves stationary coin and enemy entities.
+ * 1. Score tracking is introduced, starting at 0 and updating the HTML display.
+ * 2. Circle-vs-Rectangle collision detection accurately detects when the player touches the coin.
+ * 3. Collecting a coin increments the score by exactly 1 and immediately repositions the coin.
+ * 4. Safe random coin spawning ensures the coin stays inside canvas bounds and does not spawn on the player.
+ * 5. Single-collection-per-spawn prevents multi-counting while in contact.
+ * 6. Preserves Phase 3 continuous game loop, input, diagonal normalization, and stationary enemy.
  */
 
 // ==========================================
-// 1. Canvas Setup
+// 1. Canvas Setup & Score UI
 // ==========================================
 const canvas = document.getElementById('gameCanvas');
 const ctx = canvas.getContext('2d');
+const scoreDisplay = document.getElementById('scoreDisplay');
+
+// Score State
+let score = 0;
+
+/**
+ * Updates the HTML score counter element.
+ */
+function updateScoreDisplay() {
+  if (scoreDisplay) {
+    scoreDisplay.textContent = score;
+  }
+}
 
 // ==========================================
 // 2. Entity Definitions
@@ -30,7 +43,7 @@ const player = {
   borderColor: '#0284c7'
 };
 
-// Coin remains visible and stationary
+// Golden Coin (circular target)
 const coin = {
   x: 400,          // Center horizontal coordinate
   y: 225,          // Center vertical coordinate
@@ -40,7 +53,7 @@ const coin = {
   innerColor: '#fef08a'
 };
 
-// Enemy remains visible and stationary
+// Red Enemy remains visible and stationary
 const enemy = {
   x: 640,          // Distance from the left canvas edge in pixels
   y: 205,          // Distance from the top canvas edge in pixels
@@ -52,7 +65,6 @@ const enemy = {
 // ==========================================
 // 3. Input Handling
 // ==========================================
-// State tracking object for directional controls
 const activeKeys = {
   up: false,
   down: false,
@@ -60,11 +72,6 @@ const activeKeys = {
   right: false
 };
 
-/**
- * Maps keyboard event keys to directional flags.
- * Supports Arrow keys and WASD (case-insensitive).
- * Prevents default page scrolling for arrow keys.
- */
 function handleKeyEvent(event, isPressed) {
   const key = event.key.toLowerCase();
   let handled = false;
@@ -95,11 +102,9 @@ function handleKeyEvent(event, isPressed) {
   }
 }
 
-// Attach event listeners to window (one-time setup)
 window.addEventListener('keydown', (event) => handleKeyEvent(event, true));
 window.addEventListener('keyup', (event) => handleKeyEvent(event, false));
 
-// Reset keys when the window loses focus to prevent stuck keys
 window.addEventListener('blur', () => {
   activeKeys.up = false;
   activeKeys.down = false;
@@ -108,79 +113,148 @@ window.addEventListener('blur', () => {
 });
 
 // ==========================================
-// 4. Game Logic (State Updates)
+// 4. Movement & Boundary Logic
 // ==========================================
 
-/**
- * Updates player position based on currently held keys.
- * Normalizes diagonal movement so diagonal travel isn't faster.
- */
 function updatePlayer() {
   let dx = 0;
   let dy = 0;
 
-  // Direction vector components
   if (activeKeys.left) dx -= 1;
   if (activeKeys.right) dx += 1;
   if (activeKeys.up) dy -= 1;
   if (activeKeys.down) dy += 1;
 
-  // Only move if at least one direction is active
   if (dx !== 0 || dy !== 0) {
-    // Diagonal Normalization:
-    // Scale diagonal speed by 1 / sqrt(2) ≈ 0.7071 to ensure consistent speed
+    // Diagonal Normalization
     if (dx !== 0 && dy !== 0) {
       dx *= Math.SQRT1_2;
       dy *= Math.SQRT1_2;
     }
 
-    // Apply displacement
     player.x += dx * player.speed;
     player.y += dy * player.speed;
 
-    // Enforce Canvas boundaries
     clampPlayerToBounds();
   }
 }
 
-/**
- * Restricts player coordinates to stay completely inside the 800x450 Canvas.
- * Incorporates player width and height.
- */
 function clampPlayerToBounds() {
-  // Left boundary
   if (player.x < 0) {
     player.x = 0;
   }
-  // Right boundary (canvas width minus player width)
   if (player.x + player.width > canvas.width) {
     player.x = canvas.width - player.width;
   }
-  // Top boundary
   if (player.y < 0) {
     player.y = 0;
   }
-  // Bottom boundary (canvas height minus player height)
   if (player.y + player.height > canvas.height) {
     player.y = canvas.height - player.height;
   }
 }
 
+// ==========================================
+// 5. Collision Detection & Random Placement
+// ==========================================
+
+/**
+ * Checks for collision between the rectangular player and the circular coin.
+ * Uses exact Circle-versus-AABB (Axis-Aligned Bounding Box) mathematical testing:
+ * 1. Clamps circle center to the closest point on player rectangle.
+ * 2. Compares squared Euclidean distance with squared circle radius.
+ * 
+ * @returns {boolean} true if player touches or overlaps the coin
+ */
+function checkPlayerCoinCollision() {
+  // Find closest point on player rectangle to the coin center
+  const closestX = Math.max(player.x, Math.min(coin.x, player.x + player.width));
+  const closestY = Math.max(player.y, Math.min(coin.y, player.y + player.height));
+
+  // Compute distance vector from closest point to coin center
+  const distanceX = coin.x - closestX;
+  const distanceY = coin.y - closestY;
+
+  // Use squared distance comparison to avoid expensive Math.sqrt calls
+  const distanceSquared = (distanceX * distanceX) + (distanceY * distanceY);
+  return distanceSquared < (coin.radius * coin.radius);
+}
+
+// Maximum random spawn attempts before applying deterministic fallback
+const MAX_SPAWN_ATTEMPTS = 50;
+
+/**
+ * Repositions the coin to a random valid location within the canvas.
+ * Requirements:
+ * - Keeps the coin completely inside canvas boundaries (including coin radius).
+ * - Avoids spawning on top of or immediately adjacent to the player.
+ * - Safely caps attempts at MAX_SPAWN_ATTEMPTS with a reliable fallback.
+ */
+function spawnCoin() {
+  const margin = coin.radius + 15;
+  const minX = margin;
+  const maxX = canvas.width - margin;
+  const minY = margin;
+  const maxY = canvas.height - margin;
+
+  // Safe distance threshold: player half-diagonal + coin radius + safe padding
+  const safeDistance = (player.width / 2) + coin.radius + 50; // ~86px
+  const playerCenterX = player.x + (player.width / 2);
+  const playerCenterY = player.y + (player.height / 2);
+
+  let attempts = 0;
+  let foundValidPosition = false;
+  let candidateX = coin.x;
+  let candidateY = coin.y;
+
+  while (attempts < MAX_SPAWN_ATTEMPTS && !foundValidPosition) {
+    attempts++;
+    candidateX = Math.floor(minX + Math.random() * (maxX - minX));
+    candidateY = Math.floor(minY + Math.random() * (maxY - minY));
+
+    const dx = candidateX - playerCenterX;
+    const dy = candidateY - playerCenterY;
+    const distanceSquared = (dx * dx) + (dy * dy);
+
+    if (distanceSquared >= (safeDistance * safeDistance)) {
+      foundValidPosition = true;
+    }
+  }
+
+  if (foundValidPosition) {
+    coin.x = candidateX;
+    coin.y = candidateY;
+  } else {
+    // Deterministic safe fallback: Place on opposite quadrant of canvas
+    coin.x = playerCenterX < (canvas.width / 2) ? (canvas.width - margin - 40) : (margin + 40);
+    coin.y = playerCenterY < (canvas.height / 2) ? (canvas.height - margin - 40) : (margin + 40);
+    console.warn('Spawn max attempts reached. Placed coin using safe fallback quadrant.');
+  }
+}
+
 /**
  * Master update function.
- * Coordinates all game state changes each frame.
+ * Coordinates game physics, input updates, and collision events.
  */
 function update() {
+  // 1. Move player according to input and boundaries
   updatePlayer();
+
+  // 2. Check collision between player and coin
+  if (checkPlayerCoinCollision()) {
+    // Increment score exactly once per collection
+    score += 1;
+    updateScoreDisplay();
+
+    // Immediately teleport coin to a safe random location away from player
+    spawnCoin();
+  }
 }
 
 // ==========================================
-// 5. Rendering Logic (Drawing)
+// 6. Rendering Logic (Drawing)
 // ==========================================
 
-/**
- * Draws the subtle arcade background grid.
- */
 function drawBackground() {
   ctx.fillStyle = '#0b1120';
   ctx.fillRect(0, 0, canvas.width, canvas.height);
@@ -204,9 +278,6 @@ function drawBackground() {
   }
 }
 
-/**
- * Draws the Blue Square Player.
- */
 function drawPlayer() {
   ctx.fillStyle = player.color;
   ctx.fillRect(player.x, player.y, player.width, player.height);
@@ -219,9 +290,6 @@ function drawPlayer() {
   ctx.fillRect(player.x + 6, player.y + 6, player.width - 12, player.height - 12);
 }
 
-/**
- * Draws the Golden Circular Coin.
- */
 function drawCoin() {
   ctx.beginPath();
   ctx.arc(coin.x, coin.y, coin.radius, 0, Math.PI * 2);
@@ -239,9 +307,6 @@ function drawCoin() {
   ctx.stroke();
 }
 
-/**
- * Draws the Red Square Enemy.
- */
 function drawEnemy() {
   ctx.fillStyle = enemy.color;
   ctx.fillRect(enemy.x, enemy.y, enemy.size, enemy.size);
@@ -254,15 +319,11 @@ function drawEnemy() {
   ctx.fillRect(enemy.x + 8, enemy.y + 8, enemy.size - 16, enemy.size - 16);
 }
 
-/**
- * Master draw function.
- * Clears the canvas buffer and draws all entities in correct visual order.
- */
 function draw() {
-  // Step 1: Clear the previous frame to avoid ghosting/smearing trails
+  // Clear previous frame buffer
   ctx.clearRect(0, 0, canvas.width, canvas.height);
 
-  // Step 2: Draw the scene layers
+  // Render scene elements
   drawBackground();
   drawPlayer();
   drawCoin();
@@ -270,40 +331,28 @@ function draw() {
 }
 
 // ==========================================
-// 6. Continuous Game Loop
+// 7. Continuous Game Loop & Initialization
 // ==========================================
 
-// Guard flag to guarantee the loop is started exactly once
 let isLoopRunning = false;
 
-/**
- * The core continuous game loop.
- * Executed before every screen repaint (~60 times per second).
- */
 function gameLoop() {
-  // 1. Update game state
   update();
-
-  // 2. Render current state to screen
   draw();
-
-  // 3. Request the browser to call gameLoop again on the next animation frame
   requestAnimationFrame(gameLoop);
 }
 
-/**
- * Initializes and starts the continuous game loop.
- * Protects against accidental multiple loop invocations.
- */
 function startGame() {
   if (isLoopRunning) {
     console.warn('Game loop is already running. Ignoring duplicate start request.');
     return;
   }
   isLoopRunning = true;
+  score = 0;
+  updateScoreDisplay();
   requestAnimationFrame(gameLoop);
-  console.log('Continuous game loop initialized successfully.');
+  console.log('Game initialized successfully. Score reset to 0.');
 }
 
-// Start the game loop exactly once on load
+// Start game loop on load
 startGame();
