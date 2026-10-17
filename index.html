@@ -12,7 +12,7 @@
 <body>
   <div class="arcade-container">
     <header class="arcade-header">
-      <div class="arcade-badge">PHASE 7: POLISH, SOUND &amp; TOUCH</div>
+      <div class="arcade-badge">ARCADE EDITION &bull; PRO</div>
       <h1 class="arcade-title">COIN CATCHER</h1>
       <p class="arcade-subtitle">Classic 2D Arcade Experience</p>
     </header>
@@ -22,6 +22,10 @@
         <span class="score-label">SCORE</span>
         <span id="scoreDisplay" class="score-value">0</span>
       </div>
+      <div class="best-card">
+        <span class="best-label">BEST</span>
+        <span id="highScoreDisplay" class="best-value">0</span>
+      </div>
       <div class="lives-card">
         <span class="lives-label">LIVES</span>
         <span id="livesDisplay" class="lives-value">3</span>
@@ -30,27 +34,67 @@
         <span id="soundIcon" class="sound-icon">🔇</span>
         <span id="soundText" class="sound-text">SOUND: OFF</span>
       </button>
+      <button id="pauseBtn" class="pause-btn" aria-label="Pause Game" title="Pause Game (ESC / P)">
+        <span id="pauseIcon" class="pause-icon">⏸️</span>
+        <span id="pauseText" class="pause-text">PAUSE</span>
+      </button>
     </div>
 
     <div class="instructions-card">
-      <h2>Controls &amp; Objectives</h2>
-      <p>Use <span class="badge blue">Arrow Keys</span>, <span class="badge blue">WASD</span>, or the <span class="badge yellow">Touch D-Pad</span> below to catch coins and avoid the red patrol enemy!</p>
+      <h2>Arcade Mission</h2>
+      <p>Collect <span class="badge yellow">Gold Coins</span> quickly for Combo multipliers! Avoid the patrolling <span class="badge red">Red Enemy</span>. Press <kbd>ESC</kbd> or <kbd>P</kbd> to Pause.</p>
     </div>
 
     <div class="canvas-wrapper">
       <canvas id="gameCanvas" width="800" height="450"></canvas>
       
+      <!-- Start / Attract Overlay -->
+      <div id="startOverlay" class="game-over-overlay">
+        <div class="game-over-card start-card">
+          <div class="game-over-badge start-badge">INSERT COIN</div>
+          <h2 class="game-over-title start-title">COIN CATCHER</h2>
+          <p class="game-over-reason">Dodge the enemy, gather coins, and set the all-time high score!</p>
+          <div class="start-instructions">
+            <span>Desktop: <strong class="key-hint">Arrow Keys</strong> or <strong class="key-hint">WASD</strong></span>
+            <span>Mobile: <strong class="key-hint">Touch D-Pad</strong></span>
+          </div>
+          <button id="startBtn" class="restart-button start-btn" aria-label="Start Game">START GAME</button>
+        </div>
+      </div>
+
+      <!-- Pause Overlay -->
+      <div id="pauseOverlay" class="game-over-overlay hidden">
+        <div class="game-over-card pause-card">
+          <div class="game-over-badge pause-badge">PAUSED</div>
+          <h2 class="game-over-title pause-title">GAME PAUSED</h2>
+          <p class="game-over-reason">Take a breath, champion!</p>
+          <div class="pause-btn-group">
+            <button id="resumeBtn" class="restart-button resume-btn" aria-label="Resume Game">RESUME (ESC)</button>
+            <button id="pauseRestartBtn" class="restart-button sub-btn" aria-label="Restart From Pause">RESTART</button>
+          </div>
+        </div>
+      </div>
+
       <!-- Game Over Modal Overlay -->
       <div id="gameOverOverlay" class="game-over-overlay hidden">
         <div class="game-over-card">
           <div class="game-over-badge">MISSION FAILED</div>
           <h2 class="game-over-title">GAME OVER</h2>
           <p class="game-over-reason">You ran out of lives!</p>
+          
+          <div id="newRecordBadge" class="new-record-badge hidden">🏆 NEW HIGH SCORE! 🏆</div>
+
           <div class="final-score-box">
-            <span class="final-score-label">FINAL SCORE</span>
-            <span id="finalScoreDisplay" class="final-score-number">0</span>
+            <div class="final-score-row">
+              <span class="final-score-label">FINAL SCORE</span>
+              <span id="finalScoreDisplay" class="final-score-number">0</span>
+            </div>
+            <div class="final-score-row best-row">
+              <span class="final-best-label">ALL-TIME BEST</span>
+              <span id="finalBestDisplay" class="final-best-number">0</span>
+            </div>
           </div>
-          <button id="restartBtn" class="restart-button" aria-label="Restart Game">RESTART GAME</button>
+          <button id="restartBtn" class="restart-button" aria-label="Restart Game">PLAY AGAIN</button>
         </div>
       </div>
     </div>

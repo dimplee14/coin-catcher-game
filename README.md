@@ -51,5 +51,24 @@ A classic 2D arcade coin catcher game built with HTML5 Canvas, modern CSS, and v
 - **Accessibility & Design:** Responsive canvas scaling (`aspect-ratio: 16/9`), keyboard focus rings (`:focus-visible`), and `prefers-reduced-motion` compliance
 - **Zero Dependencies:** Pure vanilla web standards (HTML5 Canvas, CSS3, Web Audio API)
 
+## Phase 8: Professional Arcade Edition
+- **Arcade State Machine:** Seamless transitions between `START` (attract mode), `PLAYING`, `PAUSED`, and `GAMEOVER`.
+- **Persistent High Score:** Stored via `localStorage` and displayed in the HUD ("BEST"). Celebratory glowing `🏆 NEW HIGH SCORE! 🏆` badge awarded upon beating personal best.
+- **Dynamic Combo Multiplier System:** Fast coin collection within 2.5 seconds increases multiplier ($2\times, 3\times$). Floating combo feedback pops up in neon green.
+- **Pitch-Scaling Audio:** Retro coin chime ascends up the pentatonic scale with consecutive combo streaks.
+- **Juicy Screen Shake:** Dynamic camera shake that triggers on coin collection (subtle), taking damage (medium), and defeat (heavy).
+- **Dual Particle Systems:** Radial golden coin sparkles on pickup and blue/white shattered sparks on damage.
+- **Directional Animated Player Eyes:** Player character features animated pupils that glance in the direction of movement.
+- **Dynamic Difficulty:** Enemy patrol speed smoothly increases as the score climbs.
+- **Pause Menu:** Full pause/resume system toggled via <kbd>ESC</kbd>, <kbd>P</kbd>, or the HUD Pause button.
+- **Ambient Cosmic Starfield:** 35 twinkling stars in the canvas background.
+
+## Controls
+- **Movement:** Arrow Keys (`↑`, `↓`, `←`, `→`) or `W`, `A`, `S`, `D`
+- **Pause / Resume:** <kbd>ESC</kbd> or <kbd>P</kbd>
+- **Audio Toggle:** Sound button in HUD
+- **Mobile / Touch:** On-screen 4-way D-Pad
+
 ## How to Run
 Open `index.html` in any modern web browser.
+
