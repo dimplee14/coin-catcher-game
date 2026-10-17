@@ -1,24 +1,31 @@
 /**
- * Coin Catcher Arcade - Phase 4: Coin Collection, Collision Detection, and Score
+ * Coin Catcher Arcade - Phase 5: Enemy Movement, Basic AI, and Game Over
  * 
  * In this phase:
- * 1. Score tracking is introduced, starting at 0 and updating the HTML display.
- * 2. Circle-vs-Rectangle collision detection accurately detects when the player touches the coin.
- * 3. Collecting a coin increments the score by exactly 1 and immediately repositions the coin.
- * 4. Safe random coin spawning ensures the coin stays inside canvas bounds and does not spawn on the player.
- * 5. Single-collection-per-spawn prevents multi-counting while in contact.
- * 6. Preserves Phase 3 continuous game loop, input, diagonal normalization, and stationary enemy.
+ * 1. The red enemy moves with horizontal patrol AI, reversing at patrol boundaries.
+ * 2. Player-Enemy collision detection (AABB) triggers the Game Over state.
+ * 3. Gameplay updates freeze upon Game Over (player, enemy, coin, and score stop).
+ * 4. A game-over modal overlay displays the final score and a Restart button.
+ * 5. Restart resets score, player, enemy, and coin without creating duplicate loops or listeners.
+ * 6. Preserves Phase 1-4 features: keyboard input, normalization, boundaries, coin collection, score HUD.
  */
 
 // ==========================================
-// 1. Canvas Setup & Score UI
+// 1. Canvas Setup & DOM References
 // ==========================================
 const canvas = document.getElementById('gameCanvas');
 const ctx = canvas.getContext('2d');
-const scoreDisplay = document.getElementById('scoreDisplay');
 
-// Score State
+const scoreDisplay = document.getElementById('scoreDisplay');
+const gameOverOverlay = document.getElementById('gameOverOverlay');
+const finalScoreDisplay = document.getElementById('finalScoreDisplay');
+const restartBtn = document.getElementById('restartBtn');
+
+// ==========================================
+// 2. Game State Variables
+// ==========================================
 let score = 0;
+let isGameOver = false;
 
 /**
  * Updates the HTML score counter element.
@@ -30,9 +37,9 @@ function updateScoreDisplay() {
 }
 
 // ==========================================
-// 2. Entity Definitions
+// 3. Entity Definitions
 // ==========================================
-// Player object with positional, dimensional, and kinematic properties
+// Player object
 const player = {
   x: 120,          // Distance from the left canvas edge in pixels
   y: 205,          // Distance from the top canvas edge in pixels
@@ -53,17 +60,26 @@ const coin = {
   innerColor: '#fef08a'
 };
 
-// Red Enemy remains visible and stationary
+// Red Enemy with Horizontal Patrol AI
 const enemy = {
-  x: 640,          // Distance from the left canvas edge in pixels
-  y: 205,          // Distance from the top canvas edge in pixels
-  size: 40,        // Width and height of the enemy square
+  x: 640,          // Current horizontal position
+  y: 205,          // Current vertical position
+  width: 40,       // Width of enemy square
+  height: 40,      // Height of enemy square
+  size: 40,        // Backward compatibility
+  speed: 3,        // Horizontal patrol speed in pixels per frame
+  direction: -1,   // -1: moving left, 1: moving right
+  patrolMinX: 280, // Left patrol turnaround boundary
+  patrolMaxX: 740, // Right patrol turnaround boundary
   color: '#ef4444',// Menacing arcade red
-  borderColor: '#b91c1c'
+  borderColor: '#b91c1c',
+  startX: 640,     // Initial starting X for restart
+  startY: 205,     // Initial starting Y for restart
+  startDirection: -1
 };
 
 // ==========================================
-// 3. Input Handling
+// 4. Input Handling
 // ==========================================
 const activeKeys = {
   up: false,
@@ -73,6 +89,11 @@ const activeKeys = {
 };
 
 function handleKeyEvent(event, isPressed) {
+  // Ignore movement inputs if game is over
+  if (isGameOver) {
+    return;
+  }
+
   const key = event.key.toLowerCase();
   let handled = false;
 
@@ -113,7 +134,7 @@ window.addEventListener('blur', () => {
 });
 
 // ==========================================
-// 4. Movement & Boundary Logic
+// 5. Movement & AI Logic
 // ==========================================
 
 function updatePlayer() {
@@ -154,41 +175,61 @@ function clampPlayerToBounds() {
   }
 }
 
+/**
+ * Updates enemy horizontal patrol position.
+ * Reverses direction when reaching either patrol boundary.
+ */
+function updateEnemy() {
+  enemy.x += enemy.speed * enemy.direction;
+
+  // Turn around at left patrol boundary
+  if (enemy.x <= enemy.patrolMinX) {
+    enemy.x = enemy.patrolMinX;
+    enemy.direction = 1;
+  }
+  // Turn around at right patrol boundary
+  else if (enemy.x >= enemy.patrolMaxX) {
+    enemy.x = enemy.patrolMaxX;
+    enemy.direction = -1;
+  }
+}
+
 // ==========================================
-// 5. Collision Detection & Random Placement
+// 6. Collision Detection & Safe Spawning
 // ==========================================
 
 /**
- * Checks for collision between the rectangular player and the circular coin.
- * Uses exact Circle-versus-AABB (Axis-Aligned Bounding Box) mathematical testing:
- * 1. Clamps circle center to the closest point on player rectangle.
- * 2. Compares squared Euclidean distance with squared circle radius.
- * 
- * @returns {boolean} true if player touches or overlaps the coin
+ * Detects collision between the player rectangle and the circular coin.
  */
 function checkPlayerCoinCollision() {
-  // Find closest point on player rectangle to the coin center
   const closestX = Math.max(player.x, Math.min(coin.x, player.x + player.width));
   const closestY = Math.max(player.y, Math.min(coin.y, player.y + player.height));
 
-  // Compute distance vector from closest point to coin center
   const distanceX = coin.x - closestX;
   const distanceY = coin.y - closestY;
 
-  // Use squared distance comparison to avoid expensive Math.sqrt calls
   const distanceSquared = (distanceX * distanceX) + (distanceY * distanceY);
   return distanceSquared < (coin.radius * coin.radius);
+}
+
+/**
+ * Detects collision between player rectangle and enemy rectangle
+ * using Axis-Aligned Bounding Box (AABB) intersection testing.
+ */
+function checkPlayerEnemyCollision() {
+  return (
+    player.x < enemy.x + enemy.width &&
+    player.x + player.width > enemy.x &&
+    player.y < enemy.y + enemy.height &&
+    player.y + player.height > enemy.y
+  );
 }
 
 // Maximum random spawn attempts before applying deterministic fallback
 const MAX_SPAWN_ATTEMPTS = 50;
 
 /**
- * Repositions the coin to a random valid location within the canvas.
- * Requirements:
- * - Keeps the coin completely inside canvas boundaries (including coin radius).
- * - Avoids spawning on top of or immediately adjacent to the player.
- * - Safely caps attempts at MAX_SPAWN_ATTEMPTS with a reliable fallback.
+ * Repositions coin to a random valid location within canvas boundaries.
  */
 function spawnCoin() {
   const margin = coin.radius + 15;
@@ -197,7 +238,6 @@ function spawnCoin() {
   const minY = margin;
   const maxY = canvas.height - margin;
 
-  // Safe distance threshold: player half-diagonal + coin radius + safe padding
   const safeDistance = (player.width / 2) + coin.radius + 50; // ~86px
   const playerCenterX = player.x + (player.width / 2);
   const playerCenterY = player.y + (player.height / 2);
@@ -225,34 +265,121 @@ function spawnCoin() {
     coin.x = candidateX;
     coin.y = candidateY;
   } else {
-    // Deterministic safe fallback: Place on opposite quadrant of canvas
+    // Safe deterministic fallback: opposite quadrant from player
     coin.x = playerCenterX < (canvas.width / 2) ? (canvas.width - margin - 40) : (margin + 40);
     coin.y = playerCenterY < (canvas.height / 2) ? (canvas.height - margin - 40) : (margin + 40);
-    console.warn('Spawn max attempts reached. Placed coin using safe fallback quadrant.');
   }
 }
 
+// ==========================================
+// 7. Game Over & Restart Mechanics
+// ==========================================
+
+/**
+ * Triggers the Game Over state when player collides with enemy.
+ * Freezes gameplay and displays the final score overlay.
+ */
+function triggerGameOver() {
+  if (isGameOver) return; // Prevent repeated triggers
+  isGameOver = true;
+
+  // Clear held keys so player doesn't move immediately on restart
+  activeKeys.up = false;
+  activeKeys.down = false;
+  activeKeys.left = false;
+  activeKeys.right = false;
+
+  // Update final score display
+  if (finalScoreDisplay) {
+    finalScoreDisplay.textContent = score;
+  }
+
+  // Show the modal overlay
+  if (gameOverOverlay) {
+    gameOverOverlay.classList.remove('hidden');
+  }
+
+  console.log(`Game Over triggered! Final Score: ${score}`);
+}
+
+/**
+ * Resets the game to a fresh playable state.
+ * Reuses the existing loop and event listeners (no duplicate loops created).
+ */
+function restartGame() {
+  // 1. Reset state variables
+  isGameOver = false;
+  score = 0;
+  updateScoreDisplay();
+
+  // 2. Reset player to starting position
+  player.x = 120;
+  player.y = 205;
+
+  // 3. Reset enemy to starting position and direction
+  enemy.x = enemy.startX;
+  enemy.y = enemy.startY;
+  enemy.direction = enemy.startDirection;
+
+  // 4. Reset keys
+  activeKeys.up = false;
+  activeKeys.down = false;
+  activeKeys.left = false;
+  activeKeys.right = false;
+
+  // 5. Spawn coin in a fresh valid location
+  spawnCoin();
+
+  // 6. Hide game over overlay
+  if (gameOverOverlay) {
+    gameOverOverlay.classList.add('hidden');
+  }
+
+  console.log('Game restarted successfully. New session active.');
+}
+
+// Attach restart button click listener (one-time setup)
+if (restartBtn) {
+  restartBtn.addEventListener('click', restartGame);
+}
+
+// ==========================================
+// 8. Master Update Function
+// ==========================================
+
 /**
  * Master update function.
- * Coordinates game physics, input updates, and collision events.
+ * Coordinates player movement, enemy patrol, and collision checks.
+ * Stops all updates if isGameOver is true.
  */
 function update() {
-  // 1. Move player according to input and boundaries
+  // Stop all gameplay updates when game is over
+  if (isGameOver) {
+    return;
+  }
+
+  // 1. Update player based on input
   updatePlayer();
 
-  // 2. Check collision between player and coin
+  // 2. Update enemy patrol
+  updateEnemy();
+
+  // 3. Check player-enemy collision (Game Over)
+  if (checkPlayerEnemyCollision()) {
+    triggerGameOver();
+    return; // Exit immediately, no coin checks or movement updates
+  }
+
+  // 4. Check player-coin collision (Scoring)
   if (checkPlayerCoinCollision()) {
-    // Increment score exactly once per collection
     score += 1;
     updateScoreDisplay();
-
-    // Immediately teleport coin to a safe random location away from player
     spawnCoin();
   }
 }
 
 // ==========================================
-// 6. Rendering Logic (Drawing)
+// 9. Rendering Logic (Drawing)
 // ==========================================
 
 function drawBackground() {
@@ -309,21 +436,19 @@ function drawCoin() {
 
 function drawEnemy() {
   ctx.fillStyle = enemy.color;
-  ctx.fillRect(enemy.x, enemy.y, enemy.size, enemy.size);
+  ctx.fillRect(enemy.x, enemy.y, enemy.width, enemy.height);
 
   ctx.strokeStyle = enemy.borderColor;
   ctx.lineWidth = 2;
-  ctx.strokeRect(enemy.x, enemy.y, enemy.size, enemy.size);
+  ctx.strokeRect(enemy.x, enemy.y, enemy.width, enemy.height);
 
   ctx.fillStyle = 'rgba(0, 0, 0, 0.25)';
-  ctx.fillRect(enemy.x + 8, enemy.y + 8, enemy.size - 16, enemy.size - 16);
+  ctx.fillRect(enemy.x + 8, enemy.y + 8, enemy.width - 16, enemy.height - 16);
 }
 
 function draw() {
-  // Clear previous frame buffer
   ctx.clearRect(0, 0, canvas.width, canvas.height);
 
-  // Render scene elements
   drawBackground();
   drawPlayer();
   drawCoin();
@@ -331,7 +456,7 @@ function draw() {
 }
 
 // ==========================================
-// 7. Continuous Game Loop & Initialization
+// 10. Continuous Game Loop & Startup
 // ==========================================
 
 let isLoopRunning = false;
@@ -349,10 +474,11 @@ function startGame() {
   }
   isLoopRunning = true;
   score = 0;
+  isGameOver = false;
   updateScoreDisplay();
   requestAnimationFrame(gameLoop);
-  console.log('Game initialized successfully. Score reset to 0.');
+  console.log('Game loop started successfully.');
 }
 
-// Start game loop on load
+// Start game loop on initial load
 startGame();

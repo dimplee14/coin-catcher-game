@@ -30,5 +30,11 @@ A classic 2D arcade coin catcher game built with HTML5 Canvas, modern CSS, and v
 - **Single-Collection Guarantee:** Score increments exactly once per coin collection
 - **Safe Random Spawning:** Moves coin within canvas bounds, enforces safe distance from player, and includes a deterministic quadrant fallback if max attempts (50) are reached
 
+## Phase 5: Enemy Patrol AI, Collision & Game Over
+- **Enemy Patrol AI:** Red enemy patrols horizontally ($x \in [280, 740]$) and reverses direction smoothly at bounds
+- **Player-Enemy Collision:** Fast AABB collision detection triggers Game Over upon contact
+- **State Management:** Freezes all gameplay updates (`isGameOver = true`), preventing further score increments or movement
+- **Game Over Overlay & Restart:** Displays final score, reason for defeat, and a Restart button that cleanly resets the session without spawning duplicate animation loops
+
 ## How to Run
 Open `index.html` in any modern web browser.

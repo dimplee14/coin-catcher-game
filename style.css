@@ -202,6 +202,120 @@ body {
   color: #38bdf8;
 }
 
+/* Game Over Overlay */
+.game-over-overlay {
+  position: absolute;
+  inset: 4px;
+  background: rgba(8, 12, 20, 0.88);
+  backdrop-filter: blur(8px);
+  border-radius: 8px;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  z-index: 20;
+  transition: opacity 0.25s ease-in-out;
+}
+
+.game-over-overlay.hidden {
+  display: none !important;
+}
+
+.game-over-card {
+  background: rgba(15, 23, 42, 0.95);
+  border: 2px solid rgba(239, 68, 68, 0.6);
+  border-radius: 14px;
+  padding: 28px 36px;
+  text-align: center;
+  box-shadow: 
+    0 10px 40px rgba(0, 0, 0, 0.8),
+    0 0 30px rgba(239, 68, 68, 0.35);
+  max-width: 420px;
+  width: 90%;
+  animation: popIn 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+}
+
+@keyframes popIn {
+  0% { transform: scale(0.85); opacity: 0; }
+  100% { transform: scale(1); opacity: 1; }
+}
+
+.game-over-badge {
+  display: inline-block;
+  font-family: 'Press Start 2P', monospace;
+  font-size: 9px;
+  letter-spacing: 1px;
+  padding: 4px 10px;
+  background: rgba(239, 68, 68, 0.15);
+  color: #ef4444;
+  border: 1px solid rgba(239, 68, 68, 0.4);
+  border-radius: 9999px;
+  margin-bottom: 12px;
+}
+
+.game-over-title {
+  font-family: 'Press Start 2P', monospace;
+  font-size: 24px;
+  color: #ef4444;
+  text-shadow: 0 0 15px rgba(239, 68, 68, 0.8);
+  letter-spacing: 2px;
+  margin-bottom: 10px;
+}
+
+.game-over-reason {
+  font-size: 15px;
+  color: #cbd5e1;
+  margin-bottom: 20px;
+}
+
+.final-score-box {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  background: rgba(10, 15, 29, 0.8);
+  border: 1px solid rgba(250, 204, 21, 0.3);
+  border-radius: 8px;
+  padding: 12px;
+  margin-bottom: 22px;
+}
+
+.final-score-label {
+  font-family: 'Press Start 2P', monospace;
+  font-size: 10px;
+  color: #facc15;
+}
+
+.final-score-number {
+  font-family: 'Press Start 2P', monospace;
+  font-size: 26px;
+  color: #ffffff;
+  text-shadow: 0 0 10px rgba(250, 204, 21, 0.7);
+}
+
+.restart-button {
+  font-family: 'Press Start 2P', monospace;
+  font-size: 12px;
+  color: #0b1120;
+  background: linear-gradient(135deg, #38bdf8, #0284c7);
+  border: none;
+  border-radius: 8px;
+  padding: 14px 24px;
+  cursor: pointer;
+  letter-spacing: 1px;
+  box-shadow: 0 0 15px rgba(56, 189, 248, 0.4);
+  transition: all 0.2s ease;
+  width: 100%;
+}
+
+.restart-button:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 0 25px rgba(56, 189, 248, 0.7);
+  background: linear-gradient(135deg, #7dd3fc, #0284c7);
+}
+
+.restart-button:active {
+  transform: translateY(0);
+}
+
 /* Responsive adjustment */
 @media (max-width: 860px) {
   #gameCanvas {

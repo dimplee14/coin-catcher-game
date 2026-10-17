@@ -12,7 +12,7 @@
 <body>
   <div class="arcade-container">
     <header class="arcade-header">
-      <div class="arcade-badge">PHASE 4: COIN COLLECTION &amp; SCORE</div>
+      <div class="arcade-badge">PHASE 5: ENEMY PATROL &amp; GAME OVER</div>
       <h1 class="arcade-title">COIN CATCHER</h1>
       <p class="arcade-subtitle">Classic 2D Arcade Experience</p>
     </header>
@@ -26,11 +26,25 @@
 
     <div class="instructions-card">
       <h2>Controls &amp; Objectives</h2>
-      <p>Use <span class="badge blue">Arrow Keys</span> or <span class="badge blue">W A S D</span> to collect <span class="badge yellow">Gold Coins</span>! The Red Enemy remains stationary.</p>
+      <p>Use <span class="badge blue">Arrow Keys</span> or <span class="badge blue">W A S D</span> to collect <span class="badge yellow">Gold Coins</span>. Dodge the patrolling <span class="badge red">Red Enemy</span>!</p>
     </div>
 
     <div class="canvas-wrapper">
       <canvas id="gameCanvas" width="800" height="450"></canvas>
+      
+      <!-- Game Over Modal Overlay -->
+      <div id="gameOverOverlay" class="game-over-overlay hidden">
+        <div class="game-over-card">
+          <div class="game-over-badge">COLLISION DETECTED</div>
+          <h2 class="game-over-title">GAME OVER</h2>
+          <p class="game-over-reason">You collided with the red patrol enemy!</p>
+          <div class="final-score-box">
+            <span class="final-score-label">FINAL SCORE</span>
+            <span id="finalScoreDisplay" class="final-score-number">0</span>
+          </div>
+          <button id="restartBtn" class="restart-button">RESTART GAME</button>
+        </div>
+      </div>
     </div>
 
     <footer class="arcade-footer">
