@@ -36,5 +36,12 @@ A classic 2D arcade coin catcher game built with HTML5 Canvas, modern CSS, and v
 - **State Management:** Freezes all gameplay updates (`isGameOver = true`), preventing further score increments or movement
 - **Game Over Overlay & Restart:** Displays final score, reason for defeat, and a Restart button that cleanly resets the session without spawning duplicate animation loops
 
+## Phase 6: Lives, Invulnerability & Game-State Improvements
+- **3-Lives System:** Player starts with 3 lives displayed in the HUD; each non-fatal hit deducts 1 life
+- **Safe Respawn & Invulnerability:** After hit, player resets to $(120, 205)$ with $1.5\text{s}$ invulnerability
+- **Controlled Blinking:** Visual feedback via opacity toggling during invulnerability
+- **Non-blocking Timing:** Driven by `performance.now()` elapsed timestamps
+- **Game Over at 0 Lives:** Game Over triggers only when all 3 lives are exhausted
+
 ## How to Run
 Open `index.html` in any modern web browser.

@@ -1,13 +1,14 @@
 /**
- * Coin Catcher Arcade - Phase 5: Enemy Movement, Basic AI, and Game Over
+ * Coin Catcher Arcade - Phase 6: Lives, Invulnerability, and Game-State Improvements
  * 
  * In this phase:
- * 1. The red enemy moves with horizontal patrol AI, reversing at patrol boundaries.
- * 2. Player-Enemy collision detection (AABB) triggers the Game Over state.
- * 3. Gameplay updates freeze upon Game Over (player, enemy, coin, and score stop).
- * 4. A game-over modal overlay displays the final score and a Restart button.
- * 5. Restart resets score, player, enemy, and coin without creating duplicate loops or listeners.
- * 6. Preserves Phase 1-4 features: keyboard input, normalization, boundaries, coin collection, score HUD.
+ * 1. A 3-lives system is introduced and tracked in the HUD display.
+ * 2. Non-fatal collisions reduce lives by exactly 1 and return the player to safe spawn.
+ * 3. Temporary invulnerability (~1.5s) is granted after a non-fatal collision with visual blinking.
+ * 4. Invulnerability prevents repeated damage and uses elapsed timestamps (performance.now()).
+ * 5. Game Over triggers only when lives reach 0, locking state and showing final score.
+ * 6. The Restart button restores 3 lives, score 0, and clears invulnerability without creating duplicate loops.
+ * 7. Preserves all keyboard controls, normalization, boundaries, coin collection, and enemy patrol.
  */
 
 // ==========================================
@@ -17,15 +18,22 @@ const canvas = document.getElementById('gameCanvas');
 const ctx = canvas.getContext('2d');
 
 const scoreDisplay = document.getElementById('scoreDisplay');
+const livesDisplay = document.getElementById('livesDisplay');
 const gameOverOverlay = document.getElementById('gameOverOverlay');
 const finalScoreDisplay = document.getElementById('finalScoreDisplay');
 const restartBtn = document.getElementById('restartBtn');
 
 // ==========================================
-// 2. Game State Variables
+// 2. Constants & Game State Variables
 // ==========================================
+const INITIAL_LIVES = 3;
+const INVULNERABILITY_DURATION = 1500; // milliseconds
+
 let score = 0;
+let lives = INITIAL_LIVES;
 let isGameOver = false;
+let isInvulnerable = false;
+let invulnerabilityEndTime = 0;
 
 /**
  * Updates the HTML score counter element.
@@ -33,6 +41,15 @@ let isGameOver = false;
 function updateScoreDisplay() {
   if (scoreDisplay) {
     scoreDisplay.textContent = score;
+  }
+}
+
+/**
+ * Updates the HTML lives counter element.
+ */
+function updateLivesDisplay() {
+  if (livesDisplay) {
+    livesDisplay.textContent = lives;
   }
 }
 
@@ -47,7 +64,9 @@ const player = {
   height: 40,      // Height of player square in pixels
   speed: 5,        // Movement speed in pixels per frame
   color: '#38bdf8',// Bright arcade blue
-  borderColor: '#0284c7'
+  borderColor: '#0284c7',
+  startX: 120,     // Safe starting position X
+  startY: 205      // Safe starting position Y
 };
 
 // Golden Coin (circular target)
@@ -199,7 +218,7 @@ function updateEnemy() {
 // ==========================================
 
 /**
- * Detects collision between the player rectangle and the circular coin.
+ * Detects collision between player rectangle and circular coin.
  */
 function checkPlayerCoinCollision() {
   const closestX = Math.max(player.x, Math.min(coin.x, player.x + player.width));
@@ -272,18 +291,51 @@ function spawnCoin() {
 }
 
 // ==========================================
-// 7. Game Over & Restart Mechanics
+// 7. Hit Handling, Invulnerability & Game Over
 // ==========================================
 
 /**
- * Triggers the Game Over state when player collides with enemy.
+ * Handles collision when the player contacts the enemy.
+ * Distinguishes between non-fatal life loss and game over.
+ * 
+ * @param {number} currentTime - Current timestamp from performance.now()
+ */
+function handlePlayerHit(currentTime) {
+  // Decrement exactly 1 life
+  lives -= 1;
+  updateLivesDisplay();
+
+  // Check if player has run out of lives
+  if (lives <= 0) {
+    triggerGameOver();
+  } else {
+    // Non-fatal hit: Safe respawn and 1.5s invulnerability
+    player.x = player.startX;
+    player.y = player.startY;
+
+    // Reset held keys to prevent immediate accidental movement
+    activeKeys.up = false;
+    activeKeys.down = false;
+    activeKeys.left = false;
+    activeKeys.right = false;
+
+    // Grant temporary invulnerability
+    isInvulnerable = true;
+    invulnerabilityEndTime = currentTime + INVULNERABILITY_DURATION;
+
+    console.log(`Player hit! Lives remaining: ${lives}. Invulnerable for 1.5s.`);
+  }
+}
+
+/**
+ * Triggers the Game Over state when lives reach 0.
  * Freezes gameplay and displays the final score overlay.
  */
 function triggerGameOver() {
   if (isGameOver) return; // Prevent repeated triggers
   isGameOver = true;
 
-  // Clear held keys so player doesn't move immediately on restart
+  // Clear held keys
   activeKeys.up = false;
   activeKeys.down = false;
   activeKeys.left = false;
@@ -299,22 +351,27 @@ function triggerGameOver() {
     gameOverOverlay.classList.remove('hidden');
   }
 
-  console.log(`Game Over triggered! Final Score: ${score}`);
+  console.log(`Game Over! Final Score: ${score}`);
 }
 
 /**
- * Resets the game to a fresh playable state.
+ * Resets the game to a fresh playable state with 3 lives.
  * Reuses the existing loop and event listeners (no duplicate loops created).
  */
 function restartGame() {
   // 1. Reset state variables
   isGameOver = false;
   score = 0;
-  updateScoreDisplay();
+  lives = INITIAL_LIVES;
+  isInvulnerable = false;
+  invulnerabilityEndTime = 0;
 
-  // 2. Reset player to starting position
-  player.x = 120;
-  player.y = 205;
+  updateScoreDisplay();
+  updateLivesDisplay();
+
+  // 2. Reset player to safe starting position
+  player.x = player.startX;
+  player.y = player.startY;
 
   // 3. Reset enemy to starting position and direction
   enemy.x = enemy.startX;
@@ -335,7 +392,7 @@ function restartGame() {
     gameOverOverlay.classList.add('hidden');
   }
 
-  console.log('Game restarted successfully. New session active.');
+  console.log('Game restarted successfully. 3 Lives restored, Score reset to 0.');
 }
 
 // Attach restart button click listener (one-time setup)
@@ -349,7 +406,7 @@ if (restartBtn) {
 
 /**
  * Master update function.
- * Coordinates player movement, enemy patrol, and collision checks.
+ * Coordinates movement, AI, invulnerability expiration, and collisions.
  * Stops all updates if isGameOver is true.
  */
 function update() {
@@ -358,19 +415,26 @@ function update() {
     return;
   }
 
-  // 1. Update player based on input
-  updatePlayer();
+  const now = performance.now();
 
-  // 2. Update enemy patrol
-  updateEnemy();
-
-  // 3. Check player-enemy collision (Game Over)
-  if (checkPlayerEnemyCollision()) {
-    triggerGameOver();
-    return; // Exit immediately, no coin checks or movement updates
+  // 1. Check and expire invulnerability window
+  if (isInvulnerable && now >= invulnerabilityEndTime) {
+    isInvulnerable = false;
   }
 
-  // 4. Check player-coin collision (Scoring)
+  // 2. Update player based on input
+  updatePlayer();
+
+  // 3. Update enemy patrol
+  updateEnemy();
+
+  // 4. Check player-enemy collision (only active when not invulnerable)
+  if (!isInvulnerable && checkPlayerEnemyCollision()) {
+    handlePlayerHit(now);
+    return; // Exit frame update immediately after hit
+  }
+
+  // 5. Check player-coin collision (Scoring - remains active during invulnerability!)
   if (checkPlayerCoinCollision()) {
     score += 1;
     updateScoreDisplay();
@@ -405,7 +469,19 @@ function drawBackground() {
   }
 }
 
+/**
+ * Draws the Blue Square Player.
+ * Features a controlled blinking effect during invulnerability.
+ */
 function drawPlayer() {
+  // Controlled blinking effect during invulnerability (toggles alpha every 100ms)
+  if (isInvulnerable) {
+    const blinkPhase = Math.floor(performance.now() / 100) % 2;
+    ctx.globalAlpha = blinkPhase === 0 ? 0.3 : 0.85;
+  } else {
+    ctx.globalAlpha = 1.0;
+  }
+
   ctx.fillStyle = player.color;
   ctx.fillRect(player.x, player.y, player.width, player.height);
 
@@ -415,6 +491,9 @@ function drawPlayer() {
 
   ctx.fillStyle = 'rgba(255, 255, 255, 0.35)';
   ctx.fillRect(player.x + 6, player.y + 6, player.width - 12, player.height - 12);
+
+  // Restore canvas opacity for subsequent draw calls
+  ctx.globalAlpha = 1.0;
 }
 
 function drawCoin() {
@@ -474,10 +553,15 @@ function startGame() {
   }
   isLoopRunning = true;
   score = 0;
+  lives = INITIAL_LIVES;
   isGameOver = false;
+  isInvulnerable = false;
+  invulnerabilityEndTime = 0;
+
   updateScoreDisplay();
+  updateLivesDisplay();
   requestAnimationFrame(gameLoop);
-  console.log('Game loop started successfully.');
+  console.log('Game loop started successfully with 3 lives.');
 }
 
 // Start game loop on initial load

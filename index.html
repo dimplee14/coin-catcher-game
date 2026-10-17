@@ -12,7 +12,7 @@
 <body>
   <div class="arcade-container">
     <header class="arcade-header">
-      <div class="arcade-badge">PHASE 5: ENEMY PATROL &amp; GAME OVER</div>
+      <div class="arcade-badge">PHASE 6: LIVES &amp; INVULNERABILITY</div>
       <h1 class="arcade-title">COIN CATCHER</h1>
       <p class="arcade-subtitle">Classic 2D Arcade Experience</p>
     </header>
@@ -22,11 +22,15 @@
         <span class="score-label">SCORE</span>
         <span id="scoreDisplay" class="score-value">0</span>
       </div>
+      <div class="lives-card">
+        <span class="lives-label">LIVES</span>
+        <span id="livesDisplay" class="lives-value">3</span>
+      </div>
     </div>
 
     <div class="instructions-card">
       <h2>Controls &amp; Objectives</h2>
-      <p>Use <span class="badge blue">Arrow Keys</span> or <span class="badge blue">W A S D</span> to collect <span class="badge yellow">Gold Coins</span>. Dodge the patrolling <span class="badge red">Red Enemy</span>!</p>
+      <p>Collect <span class="badge yellow">Gold Coins</span> and dodge the patrolling <span class="badge red">Red Enemy</span>. You have 3 Lives with 1.5s recovery invulnerability!</p>
     </div>
 
     <div class="canvas-wrapper">
@@ -35,9 +39,9 @@
       <!-- Game Over Modal Overlay -->
       <div id="gameOverOverlay" class="game-over-overlay hidden">
         <div class="game-over-card">
-          <div class="game-over-badge">COLLISION DETECTED</div>
+          <div class="game-over-badge">MISSION FAILED</div>
           <h2 class="game-over-title">GAME OVER</h2>
-          <p class="game-over-reason">You collided with the red patrol enemy!</p>
+          <p class="game-over-reason">You ran out of lives!</p>
           <div class="final-score-box">
             <span class="final-score-label">FINAL SCORE</span>
             <span id="finalScoreDisplay" class="final-score-number">0</span>
