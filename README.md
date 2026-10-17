@@ -16,5 +16,13 @@ A classic 2D arcade coin catcher game built with HTML5 Canvas, modern CSS, and v
 - **Boundaries:** Clamped strictly within the $800 \times 450$ canvas area
 - **Zero Dependencies:** Pure vanilla JavaScript
 
+## Phase 3: Continuous Game Loop
+- **Loop Engine:** Driven by `requestAnimationFrame()` for native 60fps refresh sync
+- **Separation of Concerns:**
+  - `update()`: Mutates game state, calculates positions, checks canvas bounds
+  - `draw()`: Clears canvas buffer (`ctx.clearRect`) and draws scene layers (no trails)
+  - `gameLoop()`: Executes `update()`, then `draw()`, then schedules the next frame
+- **Single-Start Guard:** Prevents duplicate running loops or frame spikes
+
 ## How to Run
 Open `index.html` in any modern web browser.

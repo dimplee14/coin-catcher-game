@@ -1,20 +1,24 @@
 /**
- * Coin Catcher Arcade - Phase 2: Player Movement and Keyboard Input
+ * Coin Catcher Arcade - Phase 3: Continuous Game Loop
  * 
  * In this phase:
- * 1. The player object stores x, y, width, height, and movement speed.
- * 2. Keydown and keyup events track active directions (Arrow keys & WASD).
- * 3. Diagonal movement is normalized (not 1.41x faster).
- * 4. Boundary checking ensures the player stays completely within the canvas.
- * 5. A temporary update-and-draw ticker runs to make movement visible and smooth.
- * 6. The coin and enemy remain visible and stationary.
+ * 1. Establishes a true continuous game loop via requestAnimationFrame().
+ * 2. Strictly separates state updates (update()) from rendering (draw()).
+ * 3. Clears the canvas buffer every frame (ctx.clearRect) to prevent motion trails.
+ * 4. Guards against duplicate loop initiation with single-start initialization.
+ * 5. Preserves all Phase 2 keyboard input, diagonal normalization, and boundary clamping.
+ * 6. Preserves stationary coin and enemy entities.
  */
 
-// Step 1: Obtain reference to the HTML5 canvas element and 2D context
+// ==========================================
+// 1. Canvas Setup
+// ==========================================
 const canvas = document.getElementById('gameCanvas');
 const ctx = canvas.getContext('2d');
 
-// Step 2: Define Game Entities
+// ==========================================
+// 2. Entity Definitions
+// ==========================================
 // Player object with positional, dimensional, and kinematic properties
 const player = {
   x: 120,          // Distance from the left canvas edge in pixels
@@ -45,8 +49,10 @@ const enemy = {
   borderColor: '#b91c1c'
 };
 
-// Step 3: Keyboard Input Tracking
-// An object representing the live pressed-state of each direction
+// ==========================================
+// 3. Input Handling
+// ==========================================
+// State tracking object for directional controls
 const activeKeys = {
   up: false,
   down: false,
@@ -55,12 +61,9 @@ const activeKeys = {
 };
 
 /**
- * Handles keydown and keyup events.
- * Supports both Arrow keys and WASD (case-insensitive).
+ * Maps keyboard event keys to directional flags.
+ * Supports Arrow keys and WASD (case-insensitive).
  * Prevents default page scrolling for arrow keys.
- * 
- * @param {KeyboardEvent} event - The keyboard event object
- * @param {boolean} isPressed - true on keydown, false on keyup
  */
 function handleKeyEvent(event, isPressed) {
   const key = event.key.toLowerCase();
@@ -86,7 +89,7 @@ function handleKeyEvent(event, isPressed) {
     handled = true;
   }
 
-  // Prevent arrow keys from scrolling the webpage while playing
+  // Prevent arrow keys from scrolling the webpage
   if (handled && event.key.startsWith('Arrow')) {
     event.preventDefault();
   }
@@ -96,7 +99,7 @@ function handleKeyEvent(event, isPressed) {
 window.addEventListener('keydown', (event) => handleKeyEvent(event, true));
 window.addEventListener('keyup', (event) => handleKeyEvent(event, false));
 
-// Reset keys when the window loses focus to prevent "sticky key" syndrome
+// Reset keys when the window loses focus to prevent stuck keys
 window.addEventListener('blur', () => {
   activeKeys.up = false;
   activeKeys.down = false;
@@ -104,7 +107,9 @@ window.addEventListener('blur', () => {
   activeKeys.right = false;
 });
 
-// Step 4: Player Movement & Boundary Logic (Game Logic)
+// ==========================================
+// 4. Game Logic (State Updates)
+// ==========================================
 
 /**
  * Updates player position based on currently held keys.
@@ -114,17 +119,16 @@ function updatePlayer() {
   let dx = 0;
   let dy = 0;
 
-  // Determine direction components
+  // Direction vector components
   if (activeKeys.left) dx -= 1;
   if (activeKeys.right) dx += 1;
   if (activeKeys.up) dy -= 1;
   if (activeKeys.down) dy += 1;
 
-  // Only move if at least one movement key is pressed
+  // Only move if at least one direction is active
   if (dx !== 0 || dy !== 0) {
     // Diagonal Normalization:
-    // If moving both horizontally and vertically, the unnormalized vector length is sqrt(1^2 + 1^2) = sqrt(2) ≈ 1.414.
-    // Multiplying by Math.SQRT1_2 (1 / sqrt(2) ≈ 0.7071) scales the vector length back to exactly 1.
+    // Scale diagonal speed by 1 / sqrt(2) ≈ 0.7071 to ensure consistent speed
     if (dx !== 0 && dy !== 0) {
       dx *= Math.SQRT1_2;
       dy *= Math.SQRT1_2;
@@ -144,25 +148,35 @@ function updatePlayer() {
  * Incorporates player width and height.
  */
 function clampPlayerToBounds() {
-  // Left boundary: player left edge must not be less than 0
+  // Left boundary
   if (player.x < 0) {
     player.x = 0;
   }
-  // Right boundary: player right edge (x + width) must not exceed canvas width
+  // Right boundary (canvas width minus player width)
   if (player.x + player.width > canvas.width) {
     player.x = canvas.width - player.width;
   }
-  // Top boundary: player top edge must not be less than 0
+  // Top boundary
   if (player.y < 0) {
     player.y = 0;
   }
-  // Bottom boundary: player bottom edge (y + height) must not exceed canvas height
+  // Bottom boundary (canvas height minus player height)
   if (player.y + player.height > canvas.height) {
     player.y = canvas.height - player.height;
   }
 }
 
-// Step 5: Rendering Logic (Drawing Only)
+/**
+ * Master update function.
+ * Coordinates all game state changes each frame.
+ */
+function update() {
+  updatePlayer();
+}
+
+// ==========================================
+// 5. Rendering Logic (Drawing)
+// ==========================================
 
 /**
  * Draws the subtle arcade background grid.
@@ -192,19 +206,15 @@ function drawBackground() {
 
 /**
  * Draws the Blue Square Player.
- * Uses player.width and player.height.
  */
 function drawPlayer() {
-  // Main body
   ctx.fillStyle = player.color;
   ctx.fillRect(player.x, player.y, player.width, player.height);
 
-  // Border outline
   ctx.strokeStyle = player.borderColor;
   ctx.lineWidth = 2;
   ctx.strokeRect(player.x, player.y, player.width, player.height);
 
-  // Inner highlight detail
   ctx.fillStyle = 'rgba(255, 255, 255, 0.35)';
   ctx.fillRect(player.x + 6, player.y + 6, player.width - 12, player.height - 12);
 }
@@ -245,23 +255,55 @@ function drawEnemy() {
 }
 
 /**
- * Renders the entire scene.
- * Pure rendering function: does not alter game state.
+ * Master draw function.
+ * Clears the canvas buffer and draws all entities in correct visual order.
  */
-function renderScene() {
+function draw() {
+  // Step 1: Clear the previous frame to avoid ghosting/smearing trails
+  ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+  // Step 2: Draw the scene layers
   drawBackground();
   drawPlayer();
   drawCoin();
   drawEnemy();
 }
 
-// Step 6: Temporary Phase 2 Update-and-Draw Mechanism
-// Note: A full game loop with delta-time will be introduced in Phase 3.
-function phase2Tick() {
-  updatePlayer();
-  renderScene();
-  requestAnimationFrame(phase2Tick);
+// ==========================================
+// 6. Continuous Game Loop
+// ==========================================
+
+// Guard flag to guarantee the loop is started exactly once
+let isLoopRunning = false;
+
+/**
+ * The core continuous game loop.
+ * Executed before every screen repaint (~60 times per second).
+ */
+function gameLoop() {
+  // 1. Update game state
+  update();
+
+  // 2. Render current state to screen
+  draw();
+
+  // 3. Request the browser to call gameLoop again on the next animation frame
+  requestAnimationFrame(gameLoop);
 }
 
-// Initial kickoff
-requestAnimationFrame(phase2Tick);
+/**
+ * Initializes and starts the continuous game loop.
+ * Protects against accidental multiple loop invocations.
+ */
+function startGame() {
+  if (isLoopRunning) {
+    console.warn('Game loop is already running. Ignoring duplicate start request.');
+    return;
+  }
+  isLoopRunning = true;
+  requestAnimationFrame(gameLoop);
+  console.log('Continuous game loop initialized successfully.');
+}
+
+// Start the game loop exactly once on load
+startGame();
